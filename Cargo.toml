@@ -1,0 +1,10 @@
+[package]
+name = "stegano-rs"
+version = "0.1.0"
+edition = "2024"
+description = "A Rust library for steganography"
+authors = ["Au = Or[79]²"]
+license = "MIT"
+
+[dependencies]
+git 
