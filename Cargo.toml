@@ -7,4 +7,3 @@ authors = ["Au = Or[79]²"]
 license = "MIT"
 
 [dependencies]
-git 
