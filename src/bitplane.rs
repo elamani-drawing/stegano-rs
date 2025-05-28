@@ -39,3 +39,36 @@ pub struct BitplaneOptions {
     /// The strategy function that defines how to embed secret bits into a host byte.
     pub strategy: fn(u8, u8, u8) -> u8,
 }
+
+
+/// Embed secret bits in the least significant bits of the host byte (LSB).
+/// 
+/// Strategy for BitplaneOptions
+///
+/// # Arguments
+/// - `host_byte`: The byte from the host data to modify.
+/// - `secret_bits`: The bits from the secret to embed.
+/// - `bits`: Number of bits to embed.
+///
+/// # Returns
+/// A new byte with the secret bits embedded in the least significant bits.
+pub fn embed_lsb(host_byte: u8, secret_bits: u8, bits: u8) -> u8 {
+    let mask = if bits == 8 { 0xFF } else { (1 << bits) - 1 };
+    (host_byte & !mask) | (secret_bits & mask)
+}
+
+/// Embed secret bits in the most significant bits of the host byte (MSB).
+///
+/// Strategy for BitplaneOptions
+/// 
+/// # Arguments
+/// - `host_byte`: The byte from the host data to modify.
+/// - `secret_bits`: The bits from the secret to embed.
+/// - `bits`: Number of bits to embed.
+///
+/// # Returns
+/// A new byte with the secret bits embedded in the most significant bits.
+pub fn embed_msb(host_byte: u8, secret_bits: u8, bits: u8) -> u8 {
+    let mask = if bits == 8 { 0xFF } else { ((1 << bits) - 1) << (8 - bits) };
+    (host_byte & !mask) | (secret_bits << (8 - bits))
+}
