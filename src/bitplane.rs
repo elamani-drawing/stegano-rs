@@ -97,6 +97,36 @@ pub fn embed_msb(host_byte: u8, secret_bits: u8, bits: u8) -> u8 {
     (host_byte & !mask) | (secret_bits << (8 - bits))
 }
 
+
+/// Extract secret bits embedded in the least significant bits (LSB) of the host byte.
+/// 
+/// # Arguments
+/// - `host_byte`: The byte containing the embedded secret.
+/// - `bits`: Number of bits embedded in the least significant bits.
+/// 
+/// # Returns
+/// The extracted secret bits, aligned to the least significant bits.
+pub fn extract_lsb(host_byte: u8, bits: u8) -> u8 {
+    let mask = if bits == 8 { 0xFF } else { (1 << bits) - 1 };
+    host_byte & mask
+}
+
+/// Extract secret bits embedded in the most significant bits (MSB) of the host byte.
+/// 
+/// # Arguments
+/// - `host_byte`: The byte containing the embedded secret.
+/// - `bits`: Number of bits embedded in the most significant bits.
+/// 
+/// # Returns
+/// The extracted secret bits, shifted down to the least significant bits.
+pub fn extract_msb(host_byte: u8, bits: u8) -> u8 {
+    if bits == 8 {
+        host_byte
+    } else {
+        host_byte >> (8 - bits)
+    }
+}
+
 /// Embeds a secret message into a host buffer by modifying specific bits of each host byte
 /// according to the provided bitplane embedding options.
 ///
