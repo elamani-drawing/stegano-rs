@@ -59,7 +59,6 @@ pub struct BitplaneOptions {
 
     /// Optional extraction strategy function.
     
-    /// Optional extraction strategy function.
     /// 
     /// This function takes a host byte and the number of bits to extract,
     /// and must return a `u8` where the extracted `bits_to_operate`
