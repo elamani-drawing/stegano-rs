@@ -7,6 +7,7 @@
 ///
 /// ```rust
 /// use stegano_rs::embedding_locator::EmbeddingLocator;
+/// #[derive(Clone)]
 /// struct EveryOther;
 ///
 /// impl EmbeddingLocator for EveryOther {
@@ -19,7 +20,7 @@
 /// let indices: Vec<usize> = locator.iter_indices(10).collect();
 /// assert_eq!(indices, vec![0, 2, 4, 6, 8]);
 /// ```  
-pub trait EmbeddingLocator {
+pub trait EmbeddingLocator : EmbeddingLocatorClone{
     /// Returns an iterator over the valid indices in the `host`.
     ///
     /// # Arguments
@@ -32,6 +33,25 @@ pub trait EmbeddingLocator {
     ///
     /// These indices correspond to positions where embedding operations can be performed.
     fn iter_indices<'a>(&'a self, host_len: usize) -> Box<dyn Iterator<Item = usize> + 'a>;
+}
+// Trick to allow cloning of a Box<dyn EmbeddingLocator>
+pub trait EmbeddingLocatorClone {
+    fn clone_box(&self) -> Box<dyn EmbeddingLocator>;
+}
+
+impl<T> EmbeddingLocatorClone for T
+where
+    T: 'static + EmbeddingLocator + Clone,
+{
+    fn clone_box(&self) -> Box<dyn EmbeddingLocator> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn EmbeddingLocator> {
+    fn clone(&self) -> Box<dyn EmbeddingLocator> {
+        self.clone_box()
+    }
 }
 
 
@@ -50,6 +70,7 @@ pub trait EmbeddingLocator {
 /// let indices: Vec<usize> = locator.iter_indices(5).collect();
 /// assert_eq!(indices, vec![0, 1, 2, 3, 4]);
 /// ```
+#[derive(Clone)]
 pub struct LinearTraversal;
 
 impl EmbeddingLocator for LinearTraversal {

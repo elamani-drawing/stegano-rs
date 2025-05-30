@@ -161,14 +161,18 @@ pub fn extract_msb(host_byte: u8, bits: u8) -> u8 {
 /// * `secret` - A slice of bytes containing the secret message to embed.
 /// * `options` - A reference to a `BitplaneOptions` struct that configures the embedding process,
 ///               including the number of bits to modify per host byte and the embedding strategy function.
+/// * `embedding_indices` - A slice of `usize` indices indicating where in the host the secret bits should be embedded.
 ///
 /// # Returns
 ///
 /// Returns `Ok(())` if the embedding was successful, or an `Err(String)` describing the error.
+///
 /// # Example usage
 ///
 /// ```rust
 /// use stegano_rs::bitplane::{embed_lsb, bitplane_embed, BitplaneOptions};
+/// use stegano_rs::embedding_locator::*;
+///
 /// let mut host_data = vec![0u8; 30];
 /// let secret_message = b"hidden";
 /// let options = BitplaneOptions {
@@ -177,7 +181,12 @@ pub fn extract_msb(host_byte: u8, bits: u8) -> u8 {
 ///     extract_strategy: None,
 /// };
 ///
-/// bitplane_embed(&mut host_data, secret_message, &options).expect("Embedding failed");
+/// // Define your own embedding indices, for example using a linear traversal
+/// 
+/// let locator : LinearTraversal = LinearTraversal;
+/// let embedding_indices: Vec<usize> = locator.iter_indices(host_data.len()).collect();
+///
+/// bitplane_embed(&mut host_data, secret_message, &options, &embedding_indices);
 /// ```
 ///
 /// # Errors
@@ -194,11 +203,13 @@ pub fn bitplane_embed(
     host: &mut [u8],
     secret: &[u8],
     options: &BitplaneOptions,
+    embedding_indices: &[usize],
 ) -> Result<(), String> {
     // Validate bits_to_operate
     if options.bits_to_operate == 0 || options.bits_to_operate > 8 {
         return Err("options.bits_to_operate must be between 1 and 8".into());
     }
+
     // Validate embed_strategy
     let embed_fn = match options.embed_strategy {
         Some(f) => f,
@@ -206,9 +217,8 @@ pub fn bitplane_embed(
     };
 
     let total_bits = secret.len() * 8;
-    let capacity = host.len() * options.bits_to_operate as usize;
+    let capacity = embedding_indices.len() * options.bits_to_operate as usize;
 
-    // Ensure there is enough space in the host to hide the secret
     if capacity < total_bits {
         return Err(format!(
             "Not enough space in host to hide the secret message: capacity={} bits, message={} bits",
@@ -218,10 +228,13 @@ pub fn bitplane_embed(
 
     let mut bit_index = 0;
 
-    // Iterate over each host byte and embed bits
-    for host_byte in host.iter_mut() {
+    for &idx in embedding_indices {
         if bit_index >= total_bits {
             break;
+        }
+
+        if idx >= host.len() {
+            continue; // Skip invalid indices
         }
 
         // Extract up to `bits_to_operate` bits from the secret
@@ -238,13 +251,13 @@ pub fn bitplane_embed(
         }
 
         // Apply the selected embedding strategy
-        *host_byte = (embed_fn)(*host_byte, secret_bits, options.bits_to_operate);
-
+        host[idx] = (embed_fn)(host[idx], secret_bits, options.bits_to_operate);
         bit_index += options.bits_to_operate as usize;
     }
 
     Ok(())
 }
+
 
 /// Extracts a secret message from the host buffer using a bitplane extraction strategy.
 /// 
@@ -328,6 +341,8 @@ pub fn bitplane_extract(
 
 #[cfg(test)]
 mod tests {
+    use crate::embedding_locator::*;
+
     use super::*;
 
     // Bitplane embedding strategy tests
@@ -375,8 +390,10 @@ mod tests {
             embed_strategy: Some(embed_lsb),
             extract_strategy: None,
         };
-
-        let res = bitplane_embed(&mut host, &secret, &options);
+        
+        let locator : LinearTraversal = LinearTraversal;
+        let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+        let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_ok());
 
         let expected = vec![254, 254, 255, 252];
@@ -393,7 +410,9 @@ mod tests {
             extract_strategy: None,
         };
 
-        let res = bitplane_embed(&mut host, &secret, &options);
+        let locator : LinearTraversal = LinearTraversal;
+        let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+        let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_err());
         assert_eq!(
             res.unwrap_err(),
@@ -411,7 +430,9 @@ mod tests {
             extract_strategy: None,
         };
 
-        let res = bitplane_embed(&mut host, &secret, &options);
+        let locator : LinearTraversal = LinearTraversal;
+        let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+        let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_err());
         assert_eq!(
             res.unwrap_err(),
@@ -429,7 +450,9 @@ mod tests {
             extract_strategy: None,
         };
 
-        let res = bitplane_embed(&mut host, &secret, &options);
+        let locator : LinearTraversal = LinearTraversal;
+        let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+        let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_err());
         assert_eq!(
             res.unwrap_err(),
@@ -448,7 +471,9 @@ mod tests {
         };
 
         // Capacity = 1 * 2 = 2 bits < 16 bits of secret, should error
-        let res = bitplane_embed(&mut host, &secret, &options);
+        let locator : LinearTraversal = LinearTraversal;
+        let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+        let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_err());
         assert!(
             res.unwrap_err()
