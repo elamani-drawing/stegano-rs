@@ -258,13 +258,13 @@ pub fn bitplane_embed(
     Ok(())
 }
 
-
 /// Extracts a secret message from the host buffer using a bitplane extraction strategy.
 /// 
 /// # Arguments
 /// - `host`: The byte buffer containing the embedded secret.
 /// - `options`: The options indicating how to extract the secret, including the number
 ///   of bits to operate on and the extraction strategy function.
+/// - `extraction_indices`: A slice of indices indicating which bytes in the host buffer to extract from.
 /// 
 /// # Returns
 /// A vector of bytes representing the extracted secret.
@@ -279,18 +279,24 @@ pub fn bitplane_embed(
 /// # Example
 /// ```rust
 /// use stegano_rs::bitplane::{extract_lsb, bitplane_extract, BitplaneOptions};
-/// let mut host_data = vec![0u8; 10];
-/// let secret = bitplane_extract(&host_data, &BitplaneOptions {
-///     bits_to_operate: 3,
-///     extract_strategy: Some(extract_lsb),
+/// use stegano_rs::embedding_locator::{LinearTraversal, EmbeddingLocator};
+///
+/// let host_data = vec![0b10101100, 0b01110010];
+/// let options = BitplaneOptions {
+///     bits_to_operate: 2,
 ///     embed_strategy: None,
-/// });
+///     extract_strategy: Some(extract_lsb),
+/// };
+/// let locator = LinearTraversal;
+/// let extraction_indices: Vec<usize> = locator.iter_indices(host_data.len()).collect();
+///
+/// let secret = bitplane_extract(&host_data, &options, &extraction_indices).unwrap();
 /// ```
 pub fn bitplane_extract(
-        host: &[u8],
-        options: &BitplaneOptions,
-    ) -> Result<Vec<u8>, String> {
-        
+    host: &[u8],
+    options: &BitplaneOptions,
+    extraction_indices: &[usize],
+) -> Result<Vec<u8>, String> {
     // Validate bits_to_operate
     if options.bits_to_operate == 0 || options.bits_to_operate > 8 {
         return Err("options.bits_to_operate must be between 1 and 8".into());
@@ -301,20 +307,28 @@ pub fn bitplane_extract(
         Some(f) => f,
         None => return Err("No extract strategy provided".into()),
     };
-    
-    // Estimate the maximum number of bits we can extract from the host
-    let total_bits = host.len() * options.bits_to_operate as usize;
+
+    // Estimate the maximum number of bits we can extract from the host (based on extraction indices)
+    let total_bits = extraction_indices.len() * options.bits_to_operate as usize;
 
     // Compute how many full bytes that corresponds to
     let total_bytes = (total_bits + 7) / 8;
     let mut secret = vec![0u8; total_bytes];
-    
+
     let mut bit_index = 0;
 
-    // Iterate over each byte in the host buffer
-    for host_byte in host.iter() {
-        // Extract only the bits_to_operate bits using the strategy
-        let extracted_bits = (extract_fn)(*host_byte, options.bits_to_operate);
+    // Iterate over the specified indices in the host buffer
+    for &idx in extraction_indices {
+        if bit_index >= total_bits {
+            break;
+        }
+
+        if idx >= host.len() {
+            continue; // Skip invalid indices
+        }
+
+        // Extract only the bits_to_operate bits using the extraction strategy
+        let extracted_bits = (extract_fn)(host[idx], options.bits_to_operate);
 
         // Go through each bit extracted from the current host byte
         for i in 0..options.bits_to_operate {
@@ -338,6 +352,7 @@ pub fn bitplane_extract(
 
     Ok(secret)
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -528,7 +543,9 @@ mod tests {
             ..BitplaneOptions::default()
         };
 
-        let secret = bitplane_extract(&host, &options).unwrap();
+        let locator = LinearTraversal;
+        let extraction_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+        let secret = bitplane_extract(&host, &options, &extraction_indices).unwrap();
 
         // Expected extracted bits: 101 011 -> 0b10101100 (last 2 bits padded with 0)
         assert_eq!(secret.len(), 1);
@@ -548,7 +565,9 @@ mod tests {
             ..BitplaneOptions::default()
         };
 
-        let secret = bitplane_extract(&host, &options).unwrap();
+        let locator = LinearTraversal;
+        let extraction_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+        let secret = bitplane_extract(&host, &options, &extraction_indices).unwrap(); 
 
         // Expected extracted bits: 101 011 -> 0b10101100
         assert_eq!(secret.len(), 1);
@@ -568,7 +587,9 @@ mod tests {
             ..BitplaneOptions::default()
         };
 
-        let secret = bitplane_extract(&host, &options).unwrap();
+        let locator = LinearTraversal;
+        let extraction_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+        let secret = bitplane_extract(&host, &options, &extraction_indices).unwrap();
 
         // Each host byte is fully extracted as is
         assert_eq!(secret.len(), 2);
