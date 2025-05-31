@@ -1,18 +1,52 @@
 /// Configuration options for the Pixel Value Differencing (PVD) embedding method.
 ///
-/// The `bins` field is a vector of tuples representing ranges of difference values.
-/// Each bin defines a range `[min, max]` where differences falling within
-/// that range will be used to embed a specific number of bits.
+/// The `bins` field is a vector of tuples representing ranges of pixel difference values.
+/// Each bin defines a range `[min, max]` in which a pixel difference must fall to embed
+/// a certain number of bits. The embedding capacity increases with the size of the bin,
+/// enabling more bits to be embedded in image regions with higher variation.
 ///
-/// # Example bins
+/// # Default Bins and Embedding Capacity
+///
 /// ```text
-/// (0, 1), (2, 3), (4, 7), (8, 15), (16, 31), (32, 63), (64, 127), (128, 255)
+/// (0, 1)     → 1 bit
+/// (2, 3)     → 1 bit
+/// (4, 7)     → 2 bits
+/// (8, 15)    → 3 bits
+/// (16, 31)   → 4 bits
+/// (32, 63)   → 5 bits
+/// (64, 127)  → 6 bits
+/// (128, 255) → 7 bits
 /// ```
 ///
-/// These bins are typical example ranges that determine the embedding capacity
-/// depending on the pixel difference magnitude.
+/// These bins are chosen to balance **imperceptibility** and **capacity**:
+/// - Small differences hide fewer bits to reduce visible artifacts.
+/// - Larger differences hide more bits where variations are already visible.
 ///
-/// Note: These bins can be customized depending on the application and image characteristics.
+/// # Customization
+///
+/// You may override these bins depending on the image type and desired robustness.
+/// For smoother images (e.g., portraits), prefer smaller bins to preserve quality.
+/// For complex images (e.g., landscapes), larger bins can be used for higher capacity.
+///
+/// # Example
+/// ```rust
+/// use stegano_rs::pvd::PvdOptions;
+/// let options = PvdOptions::default(); // use default bin setup
+/// for (min, max) in &options.bins {
+///     println!("Bin {:?}-{:?} can hide {} bits",
+///         min, max, ((max - min + 1) as f64).log2().floor() as usize);
+/// }
+/// ```
+///
+/// # Security Note
+///
+/// This method is not cryptographically secure on its own. For secure data hiding,
+/// consider encrypting your data before embedding it with PVD.
+///
+/// # See also
+///
+/// - `pvd_embed()`
+/// - `pvd_extract()`
 pub struct PvdOptions {
     pub bins: Vec<(i32, i32)>,
 }
@@ -20,7 +54,9 @@ pub struct PvdOptions {
 impl Default for PvdOptions {
     /// Returns a default set of bins covering a range of difference values commonly used in PVD.
     ///
-    /// The bins increase exponentially in size, allowing embedding of more bits as the pixel difference grows.
+    /// The bins increase exponentially in size, allowing embedding of more bits
+    /// as the pixel difference grows. This adaptive embedding is key to maintaining
+    /// visual fidelity while maximizing capacity.
     fn default() -> Self {
         Self {
             bins: vec![
@@ -36,6 +72,7 @@ impl Default for PvdOptions {
         }
     }
 }
+
 
 /// Embeds a secret message into a host buffer using the Pixel Value Differencing (PVD) technique.
 ///
