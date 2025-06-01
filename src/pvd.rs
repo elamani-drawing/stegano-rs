@@ -130,22 +130,18 @@ pub fn pvd_embed(
 
         let p1 = host[idx1] as i32;
         let p2 = host[idx2] as i32;
-        let diff = p1 - p2;
+        let diff = (p1 - p2).abs();
 
         // Find the appropriate bin range for the current difference
         let bin_option = options
             .bins
             .iter()
-            .find(|&&(min_bin, max_bin)| diff.abs() >= min_bin && diff.abs() <= max_bin);
+            .find(|&&(min_bin, max_bin)| diff >= min_bin && diff <= max_bin);
 
         if bin_option.is_none() {
             return Err(format!(
                 "Difference {} at positions idx1={} (pixel: {}) and idx2={} (pixel: {}) does not fit any bin",
-                diff.abs(),
-                idx1,
-                p1,
-                idx2,
-                p2
+                diff, idx1, p1, idx2, p2
             ));
         }
 
@@ -155,35 +151,60 @@ pub fn pvd_embed(
         // Number of bits we can hide in this bin
         let bits_to_embed = (range_size as f64).log2().floor() as usize;
 
+
         // Extract bits_to_embed bits from the secret starting at bit_index
         let mut secret_bits = 0u32;
         let mut actual_bits = 0;
+
         for i in 0..bits_to_embed {
             let global_bit_pos = bit_index + i;
+
             if global_bit_pos >= total_secret_bits {
+                // println!(
+                //     " -> Reached end of secret bits (global_bit_pos = {})",
+                //     global_bit_pos
+                // );
                 break;
             }
-            let byte = secret[global_bit_pos / 8];
-            let bit = (byte >> (7 - (global_bit_pos % 8))) & 1;
+
+            let byte_index = global_bit_pos / 8;
+            let bit_pos_in_byte = 7 - (global_bit_pos % 8); // MSB first
+            let byte = secret[byte_index];
+            let bit = (byte >> bit_pos_in_byte) & 1;
+
             secret_bits = (secret_bits << 1) | (bit as u32);
             actual_bits += 1;
         }
 
         if actual_bits == 0 {
-            break; // Plus de bits à insérer
+            // println!(" -> No bits left to embed. Exiting loop.");
+            break;
+        }
+
+        // P remaining bits with 0s if needed to reach bits_to_embed
+        if actual_bits < bits_to_embed {
+            // println!(
+            //     " -> Padding with {} bits (shifting left)",
+            //     bits_to_embed - actual_bits
+            // );
+            secret_bits <<= bits_to_embed - actual_bits;
         }
 
         // Calculate the new difference value using the extracted bits
-        let new_diff_sign = if diff >= 0 { 1 } else { -1 };
-        let new_diff = min_bin + secret_bits as i32;
+        let new_diff_sign = if p1 >= p2 { 1 } else { -1 };
+        let new_diff: i32 = min_bin + secret_bits as i32;
 
         // Recompute pixel values so their difference equals new_diff, preserving average
         let avg = (p1 + p2) / 2;
-        let new_p1 = avg + (new_diff_sign * ((new_diff + 1) / 2));
-        let new_p2 = avg - (new_diff_sign * (new_diff / 2));
+        let new_p1 = (avg + new_diff_sign * ((new_diff + 1) / 2)).clamp(0, 255);
+        let new_p2 = (avg - new_diff_sign * (new_diff / 2)).clamp(0, 255);
 
         // Ensure new pixel values are valid (in range 0..=255)
         if new_p1 < 0 || new_p1 > 255 || new_p2 < 0 || new_p2 > 255 {
+            println!(
+                "new_p1={} or new_p2={} out of bounds (0-255), skipping this pair",
+                new_p1, new_p2
+            );
             continue; // Skip if pixel overflow would occur
         }
 
@@ -312,6 +333,8 @@ pub fn pvd_extract(
 
 #[cfg(test)]
 mod tests {
+    use crate::embedding_locator::{EmbeddingLocator, LinearTraversal};
+
     use super::*;
     // embed tests
     #[test]
@@ -334,7 +357,7 @@ mod tests {
         let mut host = vec![100u8, 110, 120, 130, 140, 150, 160, 170, 140];
         let secret = b"A"; // 8 bits (1 bytes)
         let options = PvdOptions::default();
-        let embedding_indices = vec![0, 1, 2, 3, 4, 5, 6, 7, 8]; 
+        let embedding_indices = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
 
         let result = pvd_embed(&mut host, secret, &options, &embedding_indices);
         assert!(result.is_ok());
@@ -464,5 +487,28 @@ mod tests {
         // Only first two pixels used: diff = 130 - 125 = 5 (fits bin 0..7)
         // bits extracted = 3 bits, binary 5 = 101, padded to byte = 10100000 = 0xA0
         assert_eq!(extracted, vec![0xA0]);
+    }
+
+    #[test]
+    fn test_pvd_embed_and_extract_full_cycle() {
+        // Message to be hidden
+        let mut host = vec![50, 80, 60, 100, 10, 50, 150, 210, 14, 58, 23, 47];
+        let secret_message = b"ABC"; 
+        let locator: LinearTraversal = LinearTraversal;
+        let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+        let options = PvdOptions::default();
+
+        // Step 1: Embed the message
+        let embed_result = pvd_embed(&mut host, secret_message, &options, &embedding_indices);
+        assert!(embed_result.is_ok());
+        assert_eq!(embed_result.unwrap(), secret_message.len() * 8);
+
+        // Step 2: Extract the message
+        let extract_result = pvd_extract(&host, &options, &embedding_indices);
+        assert!(extract_result.is_ok());
+
+        // The extracted message may contain extra data since no end marker is used.
+        // We only verify that the extracted message starts with the original secret message.
+        assert!(extract_result.unwrap().starts_with(secret_message));
     }
 }
