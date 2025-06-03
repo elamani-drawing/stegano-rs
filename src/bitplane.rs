@@ -58,19 +58,18 @@ pub struct BitplaneOptions {
     pub embed_strategy: Option<fn(u8, u8, u8) -> u8>,
 
     /// Optional extraction strategy function.
-    
-    /// 
+
+    ///
     /// This function takes a host byte and the number of bits to extract,
     /// and must return a `u8` where the extracted `bits_to_operate`
     /// are aligned to the **least significant bits** (i.e., right-aligned).
     ///
     /// This alignment is required for compatibility with the default `bitplane_extract` function.
-    /// 
+    ///
     /// Example: if `bits_to_operate = 3` and the embedded bits are `101`,
     /// the function must return `0b00000101`.
     pub extract_strategy: Option<fn(u8, u8) -> u8>,
 }
-
 
 impl Default for BitplaneOptions {
     /// Returns a default `BitplaneOptions` with:
@@ -80,7 +79,7 @@ impl Default for BitplaneOptions {
     fn default() -> Self {
         Self {
             bits_to_operate: 1,
-            embed_strategy: Some(embed_lsb), 
+            embed_strategy: Some(embed_lsb),
             extract_strategy: Some(extract_lsb),
         }
     }
@@ -122,13 +121,12 @@ pub fn embed_msb(host_byte: u8, secret_bits: u8, bits: u8) -> u8 {
     (host_byte & !mask) | (secret_bits << (8 - bits))
 }
 
-
 /// Extract secret bits embedded in the least significant bits (LSB) of the host byte.
-/// 
+///
 /// # Arguments
 /// - `host_byte`: The byte containing the embedded secret.
 /// - `bits`: Number of bits embedded in the least significant bits.
-/// 
+///
 /// # Returns
 /// The extracted secret bits, aligned to the least significant bits.
 pub fn extract_lsb(host_byte: u8, bits: u8) -> u8 {
@@ -137,11 +135,11 @@ pub fn extract_lsb(host_byte: u8, bits: u8) -> u8 {
 }
 
 /// Extract secret bits embedded in the most significant bits (MSB) of the host byte.
-/// 
+///
 /// # Arguments
 /// - `host_byte`: The byte containing the embedded secret.
 /// - `bits`: Number of bits embedded in the most significant bits.
-/// 
+///
 /// # Returns
 /// The extracted secret bits, shifted down to the least significant bits.
 pub fn extract_msb(host_byte: u8, bits: u8) -> u8 {
@@ -182,7 +180,7 @@ pub fn extract_msb(host_byte: u8, bits: u8) -> u8 {
 /// };
 ///
 /// // Define your own embedding indices, for example using a linear traversal
-/// 
+///
 /// let locator : LinearTraversal = LinearTraversal;
 /// let embedding_indices: Vec<usize> = locator.iter_indices(host_data.len()).collect();
 ///
@@ -259,23 +257,23 @@ pub fn bitplane_embed(
 }
 
 /// Extracts a secret message from the host buffer using a bitplane extraction strategy.
-/// 
+///
 /// # Arguments
 /// - `host`: The byte buffer containing the embedded secret.
 /// - `options`: The options indicating how to extract the secret, including the number
 ///   of bits to operate on and the extraction strategy function.
 /// - `extraction_indices`: A slice of indices indicating which bytes in the host buffer to extract from.
-/// 
+///
 /// # Returns
 /// A vector of bytes representing the extracted secret.
-/// 
+///
 /// # Requirements
 /// - `options.bits_to_operate` must be between 1 and 8.
 /// - `options.extract_strategy` must be provided and must return a `u8` where
 ///   the extracted bits are aligned to the least significant bits (right-aligned).
 ///   For example, if `bits_to_operate = 3` and the extracted bits are `101`,
 ///   the function should return `0b00000101`.
-/// 
+///
 /// # Example
 /// ```rust
 /// use stegano_rs::bitplane::{extract_lsb, bitplane_extract, BitplaneOptions};
@@ -353,7 +351,6 @@ pub fn bitplane_extract(
     Ok(secret)
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::embedding_locator::*;
@@ -395,7 +392,6 @@ mod tests {
         assert_eq!(result, 0b01010101);
     }
 
-
     #[test]
     fn test_embed_success() {
         let mut host = vec![255, 255, 255, 255]; // 4 bytes host
@@ -405,8 +401,8 @@ mod tests {
             embed_strategy: Some(embed_lsb),
             extract_strategy: None,
         };
-        
-        let locator : LinearTraversal = LinearTraversal;
+
+        let locator: LinearTraversal = LinearTraversal;
         let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
         let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_ok());
@@ -425,7 +421,7 @@ mod tests {
             extract_strategy: None,
         };
 
-        let locator : LinearTraversal = LinearTraversal;
+        let locator: LinearTraversal = LinearTraversal;
         let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
         let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_err());
@@ -445,7 +441,7 @@ mod tests {
             extract_strategy: None,
         };
 
-        let locator : LinearTraversal = LinearTraversal;
+        let locator: LinearTraversal = LinearTraversal;
         let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
         let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_err());
@@ -465,7 +461,7 @@ mod tests {
             extract_strategy: None,
         };
 
-        let locator : LinearTraversal = LinearTraversal;
+        let locator: LinearTraversal = LinearTraversal;
         let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
         let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_err());
@@ -486,7 +482,7 @@ mod tests {
         };
 
         // Capacity = 1 * 2 = 2 bits < 16 bits of secret, should error
-        let locator : LinearTraversal = LinearTraversal;
+        let locator: LinearTraversal = LinearTraversal;
         let embedding_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
         let res = bitplane_embed(&mut host, &secret, &options, &embedding_indices);
         assert!(res.is_err());
@@ -497,7 +493,7 @@ mod tests {
     }
 
     // Bitplane extraction strategy tests
-    
+
     #[test]
     fn test_extract_lsb() {
         // Extract 1 bit from LSB (should be 1)
@@ -529,14 +525,11 @@ mod tests {
     }
 
     // Bitplane extraction tests
-    
+
     #[test]
     fn test_extract_lsb_simple() {
         // Host bytes with 3 secret bits embedded in LSB: 0b00000101 (bits=101) and 0b00000011 (bits=011)
-        let host = [
-            0b00000101,
-            0b00000011,
-        ];
+        let host = [0b00000101, 0b00000011];
         let options = BitplaneOptions {
             bits_to_operate: 3,
             extract_strategy: Some(extract_lsb),
@@ -555,10 +548,7 @@ mod tests {
     #[test]
     fn test_extract_msb_simple() {
         // Host bytes with 3 secret bits embedded in MSB: 0b10100000 (bits=101) and 0b01100000 (bits=011)
-        let host = [
-            0b10100000,
-            0b01100000,
-        ];
+        let host = [0b10100000, 0b01100000];
         let options = BitplaneOptions {
             bits_to_operate: 3,
             extract_strategy: Some(extract_msb),
@@ -567,7 +557,7 @@ mod tests {
 
         let locator = LinearTraversal;
         let extraction_indices: Vec<usize> = locator.iter_indices(host.len()).collect();
-        let secret = bitplane_extract(&host, &options, &extraction_indices).unwrap(); 
+        let secret = bitplane_extract(&host, &options, &extraction_indices).unwrap();
 
         // Expected extracted bits: 101 011 -> 0b10101100
         assert_eq!(secret.len(), 1);
@@ -577,10 +567,7 @@ mod tests {
     #[test]
     fn test_extract_full_byte() {
         // Host bytes with full bytes embedded in LSB (8 bits)
-        let host = [
-            0b10101010,
-            0b11001100,
-        ];
+        let host = [0b10101010, 0b11001100];
         let options = BitplaneOptions {
             bits_to_operate: 8,
             extract_strategy: Some(extract_lsb),
@@ -595,5 +582,47 @@ mod tests {
         assert_eq!(secret.len(), 2);
         assert_eq!(secret[0], 0b10101010);
         assert_eq!(secret[1], 0b11001100);
+    }
+
+    #[test]
+    fn test_embed_and_extract_message() {
+        // Short message to hide
+        let message = b"Hi"; // ASCII: [72, 105] = [0b01001000, 0b01101001]
+
+        // 2 bytes * 8 bits = 16 bits to hide
+        // We embed 2 bits per host byte -> need 8 host bytes
+        let mut host = vec![0b1111_1111; 8]; // 8 bytes, all set to 0xFF
+
+        // Bitplane configuration: use 2 bits, with LSB strategy
+        let options = BitplaneOptions {
+            bits_to_operate: 2,
+            embed_strategy: Some(embed_lsb),
+            extract_strategy: Some(extract_lsb),
+        };
+
+        // Linear traversal over host
+        let locator = LinearTraversal;
+        let indices: Vec<usize> = locator.iter_indices(host.len()).collect();
+
+        // Embed the message into the host
+        let embed_result = bitplane_embed(&mut host, message, &options, &indices);
+        assert!(
+            embed_result.is_ok(),
+            "Embedding failed: {:?}",
+            embed_result.err()
+        );
+
+        // Extract the message back from the host
+        let extracted = bitplane_extract(&host, &options, &indices);
+        assert!(
+            extracted.is_ok(),
+            "Extraction failed: {:?}",
+            extracted.err()
+        );
+
+        let extracted = extracted.unwrap();
+
+        // Check that the extracted message matches the original
+        assert_eq!(extracted, message);
     }
 }
