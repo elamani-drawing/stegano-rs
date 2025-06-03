@@ -2,8 +2,14 @@
 name = "stegano-rs"
 version = "0.1.0"
 edition = "2024"
-description = "A Rust library for steganography"
+description = "A Rust library for steganography using bitplane and pixel value differencing techniques"
 authors = ["Au = Or[79]²"]
 license = "MIT"
+repository = "https://github.com/elamani-drawing/stegano-rs"
+documentation = "https://docs.rs/stegano-rs"
+readme = "README.md"
+keywords = ["steganography", "image", "rust", "pvd", "bitplane"]
+categories = ["multimedia", "cryptography", "encoding"]
+homepage = "https://github.com/elamani-drawing/stegano-rs"
 
 [dependencies]
