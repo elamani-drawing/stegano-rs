@@ -34,7 +34,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-stegano_rs  = "0.1.0"
+stegano-rs  = "0.1.0"
 ```
 
 ## 📘 Example
